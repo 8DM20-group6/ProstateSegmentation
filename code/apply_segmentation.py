@@ -13,8 +13,8 @@ import utils
 random.seed(42)
 
 # directorys with data and to stored training checkpoints
-DATA_DIR = Path.cwd() / "TrainingData"
-BEST_EPOCH = 30
+DATA_DIR = Path.cwd().parent / "TrainingData"
+BEST_EPOCH = 50
 CHECKPOINTS_DIR = Path.cwd() / "segmentation_model_weights" / f"u_net_{BEST_EPOCH}.pth"
 
 # hyperparameters
