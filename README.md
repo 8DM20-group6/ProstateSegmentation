@@ -11,17 +11,17 @@ The training set is used to train a classifier which predicts for each pixel of 
 
 However, for training, it is important to have a large training set, and in practice this may not always be available. A large dataset is not available in this case. A recent idea to tackle this problem is to train deep generative models to generate _synthetic_ training data. These synthetic images can then be used along with the real images in order to train the segmentation model.
 
-## Task
+## Research question
 
-Train a generative model to create synthetic images and investigate whether the use of these images improves the training of the segmentation model. (Think of a suitable metric to compare segmentation performance with and without synthetic data).
+How does the integration of synthetic generated images into the training dataset impact the performance of deep learning models for automated prostate segmentation in MRI data? (Think of a suitable metric and compare segmentation performance with and without synthetic data).
 
 ## Practical aspects
 
 ### Practical session
 
 To get you started with the project, in the practical session, you will train: 
-1. A segmentation model based on the U-Net.
-2. A VAE model to generate synthetic data. This will serve as a baseline generative model in the "project" part of this course. 
+Week 1. A segmentation model based on the U-Net.
+Week 2. A VAE model to generate synthetic data. This will serve as a baseline generative model in the "project" part of this course. 
 
 <!-- The practical session will introduce a segmentation model based on the U-Net and a baseline VAE implementation. -->
 You won't implement the models from scratch. The outline of the code is already given (have a look around the files in the folder `code`). The parts that you will implement are indicated with `# TODO`. 
