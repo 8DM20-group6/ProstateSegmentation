@@ -37,7 +37,7 @@ This project is more similar to a research project than a course assignment and 
 ### Getting started with the code
 
 - First, you need to download the code. You can either download the code as zip by choosing `Download zip` from the dropdown menu of the green `Code` button in this repository or you can [clone the repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository).
-- Once you have downloaded the code, it is recommended that you set up a new virtual environment to run the code:
+- Once you have downloaded the code, create a new python environment and install the required packages. Either use conda or via pip with the python virtual environment manager:
   - Open a terminal and navigate into the `code` directory.
   - Run `python3 -m venv venv` to create a new virtual environment.
   - Activate the environment. The command for this depeonds on your operating system. For Mac, `source venv/bin/activate`, for Windows `source venv/Scripts/activate`.
