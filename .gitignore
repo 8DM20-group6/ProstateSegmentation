@@ -1,3 +1,5 @@
 TrainingData
 .DS_Store
 __pycache__/
+segmentation_model_weights/
+segmentation_runs/

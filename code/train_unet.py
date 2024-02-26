@@ -88,14 +88,16 @@ for epoch in range(N_EPOCHS):
     # TODO: research the required implementation of training iterations in pytorch
     # usually consisting of (1) zeroing the gradients, (2) forward pass of model,
     # (3) computing loss, (4) backpropagating, (5) stepping the optimiser
+    unet_model.train()    
     with tqdm(dataloader, unit="batch") as tepoch:
+        tepoch.set_description(f"Epoch: {epoch}/{N_EPOCHS}")        
         for img, mask in tepoch:
-            unet_model.train()
             optimizer.zero_grad() # 1   
             img, mask = img.to(device), mask.float().to(device)
             prediction = unet_model(img) # 2
             loss = loss_function(prediction, mask) # 3
             current_train_loss+=loss
+            loss.backward()
             optimizer.step()
 
     # evaluate validation loss
