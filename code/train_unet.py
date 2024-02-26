@@ -3,6 +3,7 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
+import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -21,7 +22,7 @@ else:
     device = torch.device("cpu")
 
 # directorys with data and to store training checkpoints and logs
-DATA_DIR = Path.cwd().patent / "TrainingData"
+DATA_DIR = Path.cwd().parent / "TrainingData"
 CHECKPOINTS_DIR = Path.cwd() / "segmentation_model_weights"
 CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
 TENSORBOARD_LOGDIR = "segmentation_runs"
@@ -56,7 +57,7 @@ dataloader = DataLoader(
     batch_size=BATCH_SIZE,
     shuffle=True,
     drop_last=True,
-    pin_memory=True,
+    pin_memory=False,
 )
 
 # load validation data
@@ -66,13 +67,14 @@ valid_dataloader = DataLoader(
     batch_size=BATCH_SIZE,
     shuffle=True,
     drop_last=True,
-    pin_memory=True,
+    pin_memory=False,
 )
 
 # initialise model, optimiser, and loss function
-loss_function = # TODO: import custom loss function from utils module 
-unet_model = # TODO: import unet implementation from unet module
-optimizer = # TODO: use a default pytorch optimiser
+# loss_function = nn.CrossEntropyLoss() # TODO: import custom loss function from utils module 
+loss_function = utils.DiceBCELoss()
+unet_model = u_net.UNet().to(device) # TODO: import unet implementation from unet module
+optimizer = torch.optim.Adam(unet_model.parameters(), lr=0.0001) # TODO: use a default pytorch optimiser
 
 minimum_valid_loss = 10  # initial validation loss
 writer = SummaryWriter(log_dir=TENSORBOARD_LOGDIR)  # tensorboard summary
@@ -86,12 +88,24 @@ for epoch in range(N_EPOCHS):
     # TODO: research the required implementation of training iterations in pytorch
     # usually consisting of (1) zeroing the gradients, (2) forward pass of model,
     # (3) computing loss, (4) backpropagating, (5) stepping the optimiser
+    with tqdm(dataloader, unit="batch") as tepoch:
+        for img, mask in tepoch:
+            unet_model.train()
+            optimizer.zero_grad() # 1   
+            img, mask = img.to(device), mask.float().to(device)
+            prediction = unet_model(img) # 2
+            loss = loss_function(prediction, mask) # 3
+            current_train_loss+=loss
+            optimizer.step()
 
     # evaluate validation loss
     with torch.no_grad():
         unet_model.eval() # turns off the training setting to allow evaluation 
-        # TODO: evaluation validation loss
-
+        for img, mask in valid_dataloader:
+            img, mask = img.to(device), mask.float().to(device)
+            prediction = unet_model(img)
+            loss = loss_function(prediction, mask) # 3
+            current_valid_loss+=loss
         unet_model.train() # turns training setting back on
 
     # write to tensorboard log

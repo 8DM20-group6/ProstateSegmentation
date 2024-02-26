@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 
-
 class Block(nn.Module):
     """A representation for the basic convolutional building block of the unet
 
@@ -16,7 +15,9 @@ class Block(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
         self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_ch)
         self.relu = nn.ReLU()
+        self.bn2 = nn.BatchNorm2d(out_ch)
         self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
     
     def forward(self, x):
@@ -36,8 +37,10 @@ class Block(nn.Module):
         # with ReLU activations
 
         x = self.conv1(x)
+        x= self.bn1(x)
         x = self.relu(x)
         x = self.conv2(x)
+        x = self.bn2(x)
         x = self.relu(x)
         return x
 
@@ -81,8 +84,8 @@ class Encoder(nn.Module):
             ftrs.append(x)
             x = self.pool(x)
         ftrs.append(x) # save features
-        return ftrs
 
+        return ftrs
 
 class Decoder(nn.Module):
     """A representation for the decoder part of the unet.
@@ -99,10 +102,10 @@ class Decoder(nn.Module):
         super().__init__()
         self.chs = chs
         self.upconvs = nn.ModuleList(
-            # TODO: transposed convolution
+            [nn.ConvTranspose2d(chs[i], chs[i + 1], kernel_size=2, stride=2, padding=0) for i in range(len(chs) - 1)]
         )
         self.dec_blocks = nn.ModuleList(
-            # TODO: convolutional blocks
+            [Block(chs[i], chs[i + 1]) for i in range(len(chs) - 1)]
         )
 
     def forward(self, x, encoder_features):
@@ -122,14 +125,13 @@ class Decoder(nn.Module):
         """
         for i in range(len(self.chs) - 1):
             # transposed convolution
-            # TODO
+            x = self.upconvs[i](x)
             # get the features from the corresponding level of the encoder
-            # TODO
+            ftr = encoder_features[-2-i]
             # concatenate these features to x
-            x = # TODO
+            x = torch.cat([x, ftr], axis=1)
             # convolutional block
-            x = # TODO
-
+            x = self.dec_blocks[i](x)
 
         return x
 
@@ -149,8 +151,8 @@ class UNet(nn.Module):
 
     def __init__(
         self,
-        enc_chs=(1, 64, 128, 256),
-        dec_chs=(256, 128, 64, 32),
+        enc_chs=(1, 64, 128, 256, 512),
+        dec_chs=(1024, 512, 256, 128, 64),
         num_classes=1,
     ):
         super().__init__()
@@ -159,7 +161,8 @@ class UNet(nn.Module):
         self.head = nn.Sequential(
             nn.Conv2d(dec_chs[-1], num_classes, 1),
         )  # output layer
-
+        self.bottleneck = nn.Sequential(Block(enc_chs[-1], dec_chs[0]))
+    
     def forward(self, x):
         """Performs the forward pass of the unet.
        
@@ -175,8 +178,9 @@ class UNet(nn.Module):
         """
 
         # TODO
-        
-        enc_ftrs = self.encoder(x)
-        # then apply decoding 
-        # and output layer
+        ftrs = self.encoder(x)
+        x = self.bottleneck(ftrs[-1])
+        x = self.decoder(x, ftrs)
+        out = self.head(x)
+
         return out
