@@ -3,7 +3,6 @@ import torch.nn as nn
 
 l1_loss = torch.nn.L1Loss()
 
-
 class Block(nn.Module):
     """Basic convolutional building block
 
@@ -18,8 +17,8 @@ class Block(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
         self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1)
-        self.relu =  nn.LeakyReLU() # TODO  # leaky ReLU
         self.bn1 = nn.BatchNorm2d(out_ch) # TODO   # batch normalisation
+        self.relu =  nn.LeakyReLU() # TODO  # leaky ReLU
         self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
         self.bn2 = nn.BatchNorm2d(out_ch) # TODO 
 
@@ -35,8 +34,8 @@ class Block(nn.Module):
         # with ReLU activations
         # use batch normalisation
         x = self.conv1(x)
-        x = self.relu(x)
         x = self.bn1(x)
+        x = self.relu(x)
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu(x)
@@ -61,13 +60,13 @@ class Encoder(nn.Module):
         super().__init__()
         # convolutional blocks
         self.enc_blocks = nn.ModuleList(
-            # TODO
+            [Block(chs[i], chs[i+1]) for i in range(len(chs)-1)]
         )
         # max pooling
         self.pool = nn.MaxPool2d(2)
         # height and width of images at lowest resolution level
-        _h, _w = # TODO
-
+        # _h, _w = spatial_size[0]/(2**len(self.enc_blocks)), spatial_size[1]/(2**len(self.enc_blocks))
+        _h, _w = 8, 8
         # flattening
         self.out = nn.Sequential(nn.Flatten(1), nn.Linear(chs[-1] * _h * _w, 2 * z_dim))
 
@@ -87,9 +86,11 @@ class Encoder(nn.Module):
         """
 
         for block in self.enc_blocks:
+            x = block(x)
+            x = self.pool(x)
             # TODO: conv block           
             # TODO: pooling 
-        # TODO: output layer          
+        x = self.out(x) # TODO: output layer          
         return torch.chunk(x, 2, dim=1)  # 2 chunks, 1 each for mu and logvar
 
 
@@ -123,11 +124,11 @@ class Generator(nn.Module):
         )  # reshaping
 
         self.upconvs = nn.ModuleList(
-            # TODO: transposed convolution            
+            [nn.ConvTranspose2d(chs[i], chs[i], kernel_size=2, stride=2, padding=0) for i in range(len(chs) - 1)]
         )
 
         self.dec_blocks = nn.ModuleList(
-            # TODO: conv block           
+            [Block(chs[i], chs[i+1]) for i in range(len(chs)-1)]           
         )
         self.head = nn.Conv2d(chs[-1], 1, kernel_size=3, padding=1)
 
@@ -144,11 +145,14 @@ class Generator(nn.Module):
         x : torch.Tensor
         
         """
-        x = # TODO: fully connected layer
-        x = # TODO: reshape to image dimensions
+        x = self.proj_z(z) # TODO: fully connected layer
+        x = torch.reshape(x, (-1, self.chs[0], self.h, self.w)) # TODO: reshape to image dimensions
         for i in range(len(self.chs) - 1):
-            # TODO: transposed convolution
-            # TODO: convolutional block
+            # print(i, x.shape)
+            x = self.upconvs[i](x) # TODO: transposed convolution
+            # print(i, x.shape)
+            x = self.dec_blocks[i](x) # TODO: convolutional block
+            # print(i, x.shape)
         return self.head(x)
 
 
@@ -192,7 +196,6 @@ class VAE(nn.Module):
         """
         mu, logvar = self.encoder(x)
         latent_z = sample_z(mu, logvar)
-        
         output = self.generator(latent_z)
         
         return output, mu, logvar
@@ -228,6 +231,7 @@ def sample_z(mu, logvar):
     """
     eps = torch.randn(mu.size(), device=mu.device).to(mu.dtype)
     return (logvar / 2).exp() * eps + mu
+    # because (sqrt(e^x)==e^(x/2))
 
 
 def kld_loss(mu, logvar):

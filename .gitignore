@@ -1,6 +1,8 @@
-TrainingData
 .DS_Store
 __pycache__/
-segmentation_model_weights/
-segmentation_runs/
+segmentation_model_weights/*
+segmentation_runs/*
 lectures/
+training_vis/*
+vae_model_weights/*
+vae_runs/*

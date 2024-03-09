@@ -7,9 +7,14 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
 from tqdm import tqdm
+from torch.optim.lr_scheduler import LambdaLR
 
 import utils
 import vae
+import time
+import matplotlib
+import matplotlib.pyplot as plt
+from vae import vae_loss, get_noise
 
 # to ensure reproducible training/validation split
 random.seed(42)
@@ -23,18 +28,22 @@ else:
     device = torch.device("cpu")
 
 # directorys with data and to store training checkpoints and logs
-DATA_DIR = Path.cwd().patent / "TrainingData"
+DATA_DIR = Path.cwd() / "TrainingData"
+# DATA_DIR = Path.cwd().parent / "TrainingData"
 CHECKPOINTS_DIR = Path.cwd() / "vae_model_weights"
 CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
 TENSORBOARD_LOGDIR = "vae_runs"
 
+timestr = time.strftime("%Y%m%d_%H%M%S")
+VISUALIZATION_DIR = Path.cwd() / f"training_vis/{timestr}"
+VISUALIZATION_DIR.mkdir(parents=True, exist_ok=True)
 # training settings and hyperparameters
 NO_VALIDATION_PATIENTS = 2
 IMAGE_SIZE = [64, 64]
 BATCH_SIZE = 32
 N_EPOCHS = 200
 DECAY_LR_AFTER = 50
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-3
 DISPLAY_FREQ = 10
 
 # dimension of VAE latent space
@@ -86,10 +95,14 @@ valid_dataloader = DataLoader(
 )
 
 # initialise model, optimiser
-vae_model = # TODO 
-optimizer = # TODO 
+vae_model = vae.VAE().to(device) # TODO 
+optimizer = torch.optim.Adam(vae_model.parameters(), lr=0.0001) # TODO
+
 # add a learning rate scheduler based on the lr_lambda function
-scheduler = # TODO
+scheduler = LambdaLR(optimizer=optimizer, lr_lambda=lr_lambda)
+ # TODO
+
+noise = get_noise(32, 256, device="cuda")
 
 # training loop
 writer = SummaryWriter(log_dir=TENSORBOARD_LOGDIR)  # tensorboard summary
@@ -99,12 +112,29 @@ for epoch in range(N_EPOCHS):
     
     # TODO 
     # training iterations
+    vae_model.train()    
+    with tqdm(dataloader, unit="batch") as tepoch:
+        tepoch.set_description(f"Epoch: {epoch+1}/{N_EPOCHS}")        
+        for img, mask in tepoch:
+            optimizer.zero_grad() # 1   
+            img, mask = img.to(device), mask.float().to(device)
+            img_recon, mu, logvar = vae_model(img) # 2
+            loss = vae_loss(img, img_recon, mu, logvar) # 3
+            current_train_loss+=loss
+            loss.backward()
+            optimizer.step()
 
     # evaluate validation loss
     with torch.no_grad():
-        vae_model.eval()
-        # TODO 
-        vae_model.train()
+        vae_model.eval() # turns off the training setting to allow evaluation 
+        for img, mask in valid_dataloader:
+            img, mask = img.to(device), mask.float().to(device)
+            img_recon, mu, logvar = vae_model(img) # 2
+            loss = vae_loss(img, img_recon, mu, logvar) # 3
+            current_valid_loss+=loss
+        # vae_model.train() # turns training setting back on
+
+    print(f"Train: {current_train_loss:.4f} | Validation: {current_valid_loss:.4f}")
     # write to tensorboard log
     writer.add_scalar("Loss/train", current_train_loss / len(dataloader), epoch)
     writer.add_scalar(
@@ -113,15 +143,23 @@ for epoch in range(N_EPOCHS):
     scheduler.step() # step the learning step scheduler
 
     # save examples of real/fake images
-    if (epoch + 1) % DISPLAY_FREQ == 0:
-        img_grid = make_grid(
-            torch.cat((x_recon[:5], x_real[:5])), nrow=5, padding=12, pad_value=-1
-        )
-        writer.add_image(
-            "Real_fake", np.clip(img_grid[0][np.newaxis], -1, 1) / 2 + 0.5, epoch + 1
-        )
+    # if (epoch + 1) % DISPLAY_FREQ == 0:
+    #     img_grid = make_grid(
+    #         torch.cat((img_recon[:5], img[:5])), nrow=5, padding=12, pad_value=-1
+    #     )
+    #     writer.add_image(
+    #         "Real_fake", np.clip(img_grid[0][np.newaxis], -1, 1) / 2 + 0.5, epoch + 1
+    #     )
         
     # TODO: sample noise 
+
     # TODO: generate images and display
+    decoder = vae_model.generator
+    img_generated = decoder(noise) # (32, 1, 64, 64)
+    matplotlib.use('Agg')
+    plt.imshow(img_generated[0,0,:,:].detach().cpu())
+    plt.savefig(f"{VISUALIZATION_DIR}/{epoch}.png")
+    plt.close()
+    vae_model.train()
 
 torch.save(vae_model.state_dict(), CHECKPOINTS_DIR / "vae_model.pth")
