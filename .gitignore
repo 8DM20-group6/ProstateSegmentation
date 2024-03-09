@@ -3,3 +3,4 @@ TrainingData
 __pycache__/
 segmentation_model_weights/
 segmentation_runs/
+lectures/

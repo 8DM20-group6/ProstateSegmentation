@@ -1,3 +1,4 @@
+#%%
 import random
 from pathlib import Path
 
@@ -31,7 +32,7 @@ TENSORBOARD_LOGDIR = "segmentation_runs"
 NO_VALIDATION_PATIENTS = 2
 IMAGE_SIZE = [64, 64]
 BATCH_SIZE = 32
-N_EPOCHS = 100
+N_EPOCHS = 20
 LEARNING_RATE = 1e-4
 TOLERANCE = 0.03  # for early stopping
 
@@ -69,7 +70,7 @@ valid_dataloader = DataLoader(
     drop_last=True,
     pin_memory=False,
 )
-
+#%%
 # initialise model, optimiser, and loss function
 # loss_function = nn.CrossEntropyLoss() # TODO: import custom loss function from utils module 
 loss_function = utils.DiceBCELoss()
@@ -78,7 +79,7 @@ optimizer = torch.optim.Adam(unet_model.parameters(), lr=0.0001) # TODO: use a d
 
 minimum_valid_loss = 10  # initial validation loss
 writer = SummaryWriter(log_dir=TENSORBOARD_LOGDIR)  # tensorboard summary
-
+#%%
 # training loop
 for epoch in range(N_EPOCHS):
     current_train_loss = 0.0
@@ -90,7 +91,7 @@ for epoch in range(N_EPOCHS):
     # (3) computing loss, (4) backpropagating, (5) stepping the optimiser
     unet_model.train()    
     with tqdm(dataloader, unit="batch") as tepoch:
-        tepoch.set_description(f"Epoch: {epoch}/{N_EPOCHS}")        
+        tepoch.set_description(f"Epoch: {epoch+1}/{N_EPOCHS}")        
         for img, mask in tepoch:
             optimizer.zero_grad() # 1   
             img, mask = img.to(device), mask.float().to(device)
