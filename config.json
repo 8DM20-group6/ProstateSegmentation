@@ -1,0 +1,17 @@
+{
+    "dataloader": {
+        "data_dir": "TrainingData",
+        "validation_patients": 2,
+        "image_size": [64, 64],
+        "batch_size": 32
+    },
+        
+    "train": {
+        "device": "cuda",
+        "epochs": 100,
+        "lr_vae": 0.001,
+        "lr_unet": 0.0001,
+        "decay_lr_after": 50,
+        "z_dim": 256
+    }
+}
