@@ -9,6 +9,8 @@ from collections import OrderedDict
 from models.vae import get_noise
 
 class Logger():
+    """Plots images during training for visualization.
+    """    
     def __init__(self, config, model, train_loader=None):
         self.config = config["train"]
         self.results_dir = self.determine_dir(model)
@@ -48,7 +50,7 @@ class Logger():
             decoder = model.generator
             img_generated = decoder(self.noise) # (32, 1, 64, 64)
             matplotlib.use('Agg')
-            plt.imshow(img_generated[0,0,:,:].detach().cpu())
+            plt.imshow(img_generated[0,0,:,:].detach().cpu(), cmap="gray")
             vis_dir = self.results_dir / "train_imgs"
             vis_dir.mkdir(parents=True, exist_ok=True)
             plt.savefig(f"{vis_dir}/{epoch}.png")
