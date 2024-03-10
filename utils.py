@@ -13,6 +13,8 @@ class Logger():
     """    
     def __init__(self, config, model, train_loader=None):
         self.config = config["train"]
+        self.decay_lr_after = self.config["decay_lr_after"]
+        self.epochs = self.config["epochs"]
         self.results_dir = self.determine_dir(model)
         self.results_dir.mkdir(parents=True, exist_ok=True)
         print(f"Logging to {self.results_dir}")
@@ -22,15 +24,18 @@ class Logger():
         if model.__class__.__name__=="UNet":
             RESULTS_DIR = "segmentation_results"
             self.modelname = "UNet"
+            self.lr = self.config["lr_unet"]
+
         elif model.__class__.__name__=="VAE":
             RESULTS_DIR = "vae_results"
             self.modelname = "VAE"
+            self.lr = self.config["lr_vae"]
             self.noise = get_noise(32, self.config["z_dim"], device=self.config["device"])
         else:
             raise Exception("What model is this bro?")
         
         timestr = time.strftime("%Y%m%d_%H%M%S")
-        return Path.cwd() / RESULTS_DIR / timestr      
+        return Path.cwd() / RESULTS_DIR / f"{timestr}_epochs{self.epochs}_lr{self.lr}_decay{self.decay_lr_after}"    
 
     def visualize_train(self, model, epoch):
         if self.modelname=="UNet":
@@ -123,3 +128,5 @@ def write_config(content, filename):
     filename = Path(filename)
     with filename.open('wt') as handle:
         json.dump(content, handle, indent=4, sort_keys=False)
+
+
