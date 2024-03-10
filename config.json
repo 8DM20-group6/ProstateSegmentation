@@ -8,10 +8,10 @@
         
     "train": {
         "device": "cuda",
-        "epochs": 100,
+        "epochs": 800,
         "lr_vae": 0.001,
         "lr_unet": 0.0001,
-        "decay_lr_after": 50,
+        "decay_lr_after": 500,
         "z_dim": 256
     }
 }
