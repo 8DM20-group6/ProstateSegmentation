@@ -31,7 +31,11 @@ class Trainer():
         for epoch in range(self.epochs):
             current_train_loss = 0.0
             current_valid_loss = 0.0
-            
+            current_recon_train_loss = 0.0
+            current_recon_valid_loss = 0.0
+            current_kld_train_loss = 0.0
+            current_kld_valid_loss = 0.0
+
             self.model.train()    
             with tqdm(self.train_loader, unit="batch") as tepoch:
                 tepoch.set_description(f"Epoch: {epoch+1}/{self.epochs}")        
@@ -39,12 +43,15 @@ class Trainer():
                     self.optimizer.zero_grad() # 1   
                     img, mask = img.to(self.device), mask.float().to(self.device)
                     img_recon, mu, logvar = self.model(img) # 2
-                    print(mu.shape, logvar.shape)
+                    # print(mu.shape, logvar.shape)
                     if self.logger.modelname=="UNet":
                         loss = self.loss_fn(img_recon, mask)
                     if self.logger.modelname=="VAE":
-                        loss = self.loss_fn(img, img_recon, mu, logvar)
+                        # loss = self.loss_fn(img, img_recon, mu, logvar)
+                        loss, recon_loss, kld_loss = self.loss_fn(img, img_recon, mu, logvar)
                     current_train_loss+=loss
+                    current_recon_train_loss+=recon_loss
+                    current_kld_train_loss+=kld_loss
                     loss.backward()
                     self.optimizer.step()
 
@@ -57,16 +64,28 @@ class Trainer():
                     if self.logger.modelname=="UNet":
                         loss = self.loss_fn(img_recon, mask)
                     if self.logger.modelname=="VAE":
-                        loss = self.loss_fn(img, img_recon, mu, logvar)
+                        # loss = self.loss_fn(img, img_recon, mu, logvar)
+                        loss, recon_loss, kld_loss = self.loss_fn(img, img_recon, mu, logvar)
                     current_valid_loss+=loss
+                    current_recon_valid_loss+=recon_loss
+                    current_kld_valid_loss+=kld_loss
                 # vae_model.train() # turns training setting back on
 
             #print(f"Train: {current_train_loss / len(self.train_loader):.4f} | Validation: {current_valid_loss / len(self.val_loader):.4f}")
             # write to tensorboard log
-            self.writer.add_scalar("Loss/train", current_train_loss / len(self.train_loader), epoch)
-            self.writer.add_scalar(
-                "Loss/validation", current_valid_loss / len(self.val_loader), epoch
-            )
+            self.writer.add_scalars("Loss/train", {
+                                    "Total loss": current_train_loss / len(self.train_loader),
+                                    "Recon_loss": current_recon_train_loss / len(self.train_loader),
+                                    "KLD_loss": current_kld_train_loss / len(self.train_loader),
+                                    }, epoch)
+            self.writer.add_scalars("Loss/train", {
+                                    "Total loss": current_valid_loss / len(self.val_loader),
+                                    "Recon_loss": current_recon_valid_loss / len(self.val_loader),
+                                    "KLD_loss": current_kld_valid_loss / len(self.val_loader),
+                                    }, epoch)
+  
+        
+
             if self.logger.modelname=="VAE":
                 self.scheduler.step() # step the learning step scheduler
 
@@ -182,6 +201,7 @@ class Tester():
         for ax in axs.ravel():
             ax.set_xticks([])
             ax.set_yticks([])
+        plt.subplots_adjust(wspace=0.025, hspace=0.05)
         plt.show()
 
     def calc_scores(self):

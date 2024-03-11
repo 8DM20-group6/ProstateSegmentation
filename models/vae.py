@@ -272,4 +272,4 @@ def vae_loss(inputs, recons, mu, logvar):
     float
         sum of reconstruction and KLD loss
     """
-    return l1_loss(inputs, recons) + kld_loss(mu, logvar)
+    return l1_loss(inputs, recons) + kld_loss(mu, logvar), l1_loss(inputs, recons), kld_loss(mu, logvar)
