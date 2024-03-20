@@ -29,6 +29,7 @@ See main.py
 pip install -r requirements.txt
 ```
 ## Folder Structure
+Because the `TrainingData` folder is used for this part as well as the registration part it should be located in the parent directory (directory above working directory).
 ```
 ProstateSegmentation
 ├───main.py - main script 
@@ -62,10 +63,10 @@ The config file is in `.json` file format and contains parameters used for data 
         
     "train": {
         "device": "cuda",                 // Computation device
-        "epochs": 100,                    // Number of epochs
-        "lr_vae": 0.001,                  // Learning rate VAE model
+        "epochs": 5000,                    // Number of epochs
+        "lr_vae": 0.0005,                  // Learning rate VAE model
         "lr_unet": 0.0001,                // Learning rate UNet model
-        "decay_lr_after": 50,             // After this epoch decay LR
+        "decay_lr_after": 5000,             // After this epoch decay LR
         "z_dim": 256                      // Latent vector dimension
     }
 }

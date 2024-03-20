@@ -183,4 +183,4 @@ class UNet(nn.Module):
         x = self.decoder(x, ftrs)
         out = self.head(x)
 
-        return out, None, None
+        return out, None, None, None

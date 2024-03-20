@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 l1_loss = torch.nn.L1Loss()
 
@@ -132,7 +133,7 @@ class Generator(nn.Module):
         )
         self.head = nn.Conv2d(chs[-1], 1, kernel_size=3, padding=1)
 
-    def forward(self, z):
+    def forward(self, z, detach=False):
         """Performs the forward pass of decoder
 
         Parameters
@@ -145,6 +146,8 @@ class Generator(nn.Module):
         x : torch.Tensor
         
         """
+        if detach:
+            z = z.detach()
         x = self.proj_z(z) # TODO: fully connected layer
         x = torch.reshape(x, (-1, self.chs[0], self.h, self.w)) # TODO: reshape to image dimensions
         for i in range(len(self.chs) - 1):
@@ -174,6 +177,7 @@ class VAE(nn.Module):
         super().__init__()
         self.encoder = Encoder()
         self.generator = Generator()
+        self.generator_mask = Generator()
 
 
     def forward(self, x):
@@ -197,11 +201,12 @@ class VAE(nn.Module):
         mu, logvar = self.encoder(x)
         latent_z = sample_z(mu, logvar)
         output = self.generator(latent_z)
+        output_mask = self.generator_mask(latent_z, detach=True)
         
-        return output, mu, logvar
+        return output, mu, logvar, output_mask
 
 
-def get_noise(n_samples, z_dim, device="cpu"):
+def get_noise(n_samples, z_dim, device="cpu", seed=False):
     """Creates noise vectors.
     
     Given the dimensions (n_samples, z_dim), creates a tensor of that shape filled with 
@@ -216,6 +221,9 @@ def get_noise(n_samples, z_dim, device="cpu"):
     device : str
         the type of the device, by default "cpu"
     """
+    if seed:
+        torch.manual_seed(seed)
+
     return torch.randn(n_samples, z_dim, device=device)
 
 
@@ -253,7 +261,7 @@ def kld_loss(mu, logvar):
     """
     return -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
 
-def vae_loss(inputs, recons, mu, logvar):
+def vae_loss(inputs, recons, mu, logvar, beta=1):
     """Computes the VAE loss, sum of reconstruction and KLD loss
 
     Parameters
@@ -272,4 +280,9 @@ def vae_loss(inputs, recons, mu, logvar):
     float
         sum of reconstruction and KLD loss
     """
-    return l1_loss(inputs, recons) + kld_loss(mu, logvar), l1_loss(inputs, recons), kld_loss(mu, logvar)
+    # print(f"l1: {l1_loss(inputs, recons).item()}")
+    # print(f"beta: {beta+1e-8}, kld:{kld_loss(mu, logvar)} together: {(beta+1e-8)*kld_loss(mu, logvar)}")
+
+    return l1_loss(inputs, recons) + (10+1e-9)*kld_loss(mu, logvar), l1_loss(inputs, recons), (10+1e-9)*kld_loss(mu, logvar)
+
+

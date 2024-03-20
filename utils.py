@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 from pathlib import Path
 from collections import OrderedDict
 from models.vae import get_noise
@@ -16,7 +17,6 @@ class Logger():
         self.decay_lr_after = self.config["decay_lr_after"]
         self.epochs = self.config["epochs"]
         self.results_dir = self.determine_dir(model)
-        self.results_dir.mkdir(parents=True, exist_ok=True)
         print(f"Logging to {self.results_dir}")
         self.vis = next(iter(train_loader))
 
@@ -38,8 +38,9 @@ class Logger():
         return Path.cwd() / RESULTS_DIR / f"{timestr}_epochs{self.epochs}_lr{self.lr}_decay{self.decay_lr_after}"    
 
     def visualize_train(self, model, epoch):
+        self.results_dir.mkdir(parents=True, exist_ok=True)
         if self.modelname=="UNet":
-            predict_logits, _, _ = model(self.vis[0].to(self.config["device"]))
+            predict_logits, _, _, _= model(self.vis[0].to(self.config["device"]))
             heatmap = torch.sigmoid(predict_logits)
             fig, axs = plt.subplots(1, 3)
             axs[0].imshow(self.vis[0][0,:,:,:].squeeze().detach().cpu(), cmap="gray")
@@ -58,8 +59,18 @@ class Logger():
             plt.imshow(img_generated[0,0,:,:].detach().cpu(), cmap="gray")
             vis_dir = self.results_dir / "train_imgs"
             vis_dir.mkdir(parents=True, exist_ok=True)
-            plt.savefig(f"{vis_dir}/{epoch}.png")
+            plt.savefig(f"{vis_dir}/{epoch}_img.png")
             plt.close()
+
+            decoder_mask = model.generator_mask
+            mask_generated = decoder_mask(self.noise)
+            matplotlib.use('Agg')
+            plt.imshow(np.round(mask_generated[0,0,:,:].detach().cpu()), "gray")
+            vis_dir = self.results_dir / "train_imgs"
+            vis_dir.mkdir(parents=True, exist_ok=True)
+            plt.savefig(f"{vis_dir}/{epoch}_mask.png")
+            plt.close()
+
 
 class DiceBCELoss(nn.Module):
     """Loss function, computed as the sum of Dice score and binary cross-entropy.

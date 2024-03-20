@@ -3,15 +3,18 @@
         "data_dir": "TrainingData",
         "validation_patients": 2,
         "image_size": [64, 64],
-        "batch_size": 32
+        "batch_size": 32,
+        "nr_synthetic_imgs": 34,
+        "z_dim": 256,
+        "device": "cuda"
     },
         
     "train": {
         "device": "cuda",
-        "epochs": 800,
-        "lr_vae": 0.001,
+        "epochs": 250,
+        "lr_vae": 0.0005,
         "lr_unet": 0.0001,
-        "decay_lr_after": 500,
+        "decay_lr_after": 200,
         "z_dim": 256
     }
 }

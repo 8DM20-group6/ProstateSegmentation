@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 import random
 from pathlib import Path
 from torch.utils.data import DataLoader
+from models.vae import get_noise
 
 class ProstateMRDataset(torch.utils.data.Dataset):
     """Dataset containing prostate MR images.
@@ -82,35 +83,78 @@ class ProstateMRDataset(torch.utils.data.Dataset):
             ),
         )
     
-def prostateMRDataset(config):
-    DATA_DIR = Path.cwd().parent / config["dataloader"]["data_dir"]
-    # CHECKPOINTS_DIR = Path.cwd() / "results"
-    # CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
-    # TENSORBOARD_LOGDIR = "segmentation_runs"
+class ExtendDataset(torch.utils.data.Dataset):
+    def __init__(self, config, base_dataset, vae_model, seed=False):
+        super().__init__()
+        self.base_dataset = base_dataset
+        self.config = config["dataloader"]
+        self.nr_synthetic_imgs = self.config["nr_synthetic_imgs"]
+        self.batch_size = self.config["batch_size"]
+        self.length = len(self.base_dataset) + self.nr_synthetic_imgs*self.batch_size
+        self.seed = seed
+        self.vae_model = vae_model.to(self.config["device"])
+        print(self.length)
+        
+    def __len__(self):
+        return self.length
+    
+    def __getitem__(self, index):
+        if index >= self.length:
+            f"index should be smaller than {self.length}"
+            raise IndexError(f"index should be smaller than {self.length}")
+        if index >= len(self.base_dataset):
+            if self.seed:
+                seed = index
+            else:
+                seed = False
 
-    # training settings and hyperparameters
+            noise = get_noise(n_samples=1, 
+                              z_dim=self.config["z_dim"],
+                              device=self.config["device"],
+                              seed=seed)
+            self.vae_model.eval()
+            decoder = self.vae_model.generator
+            decoder_mask = self.vae_model.generator_mask
+            with torch.no_grad():
+                img = decoder(noise)
+                mask = decoder_mask(noise)
+            img, mask = img.squeeze(), mask.squeeze()
+            img, mask = img.unsqueeze(0), mask.unsqueeze(0)
+            mask = np.round(torch.sigmoid(mask.detach().cpu())) #sigmoid 0..1
+            mean = torch.mean(img)
+            std = torch.std(img)
+            transform = transforms.Normalize(mean, std, True)
+            transform(img)
+
+        else:
+            img, mask = self.base_dataset[index]
+
+        return img.to(self.config["device"]), mask.to(self.config["device"])
+            
+
+def prostateMRDataset(config, vae_model=None, seed=False):
+    DATA_DIR = Path.cwd().parent / config["dataloader"]["data_dir"]
     NO_VALIDATION_PATIENTS = 2
     IMAGE_SIZE = config["dataloader"]["image_size"]
     BATCH_SIZE = config["dataloader"]["batch_size"]
-    # N_EPOCHS = 20
-    # LEARNING_RATE = 1e-4
-    # TOLERANCE = 0.03  # for early stopping
 
-    # find patient folders in training directory
-    # excluding hidden folders (start with .)
     patients = [
         path
         for path in DATA_DIR.glob("*")
         if not any(part.startswith(".") for part in path.parts)
     ]
+    
+    random.seed(42)
     random.shuffle(patients)
 
-    # split in training/validation after shuffling
     partition = {
         "train": patients[:-NO_VALIDATION_PATIENTS],
         "validation": patients[-NO_VALIDATION_PATIENTS:],
     }
     dataset = ProstateMRDataset(partition["train"], IMAGE_SIZE)
+    if vae_model:
+        dataset = ExtendDataset(config, dataset, vae_model, seed)
+
     dataloader = DataLoader(
         dataset,
         batch_size=BATCH_SIZE,
@@ -118,7 +162,6 @@ def prostateMRDataset(config):
         drop_last=True,
         pin_memory=False)
 
-    # load validation data
     valid_dataset = ProstateMRDataset(partition["validation"], IMAGE_SIZE)
     valid_dataloader = DataLoader(
         valid_dataset,
@@ -126,5 +169,5 @@ def prostateMRDataset(config):
         shuffle=True,
         drop_last=True,
         pin_memory=False)
-    
+        
     return dataloader, valid_dataloader
