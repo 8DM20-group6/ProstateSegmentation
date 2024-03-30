@@ -58,16 +58,48 @@ The config file is in `.json` file format and contains parameters used for data 
         "data_dir": "TrainingData",       // Foldername data (IN PARENT DIR!)
         "validation_patients": 2,         // Validation subset size
         "image_size": [64, 64],           // Training image dimensions
-        "batch_size": 32                  // Batch size
+        "batch_size": 32,                 // Batch size
+        "nr_synthetic_imgs": 34,          // Number of synthetic images
+        "z_dim": 256,                     // Latent space dimension
+        "device": "cuda"                  // Computation device
     },
         
     "train": {
         "device": "cuda",                 // Computation device
-        "epochs": 5000,                    // Number of epochs
-        "lr_vae": 0.0005,                  // Learning rate VAE model
-        "lr_unet": 0.0001,                // Learning rate UNet model
-        "decay_lr_after": 5000,             // After this epoch decay LR
-        "z_dim": 256                      // Latent vector dimension
+        "epochs": 250,                    // Number of epochs
+        "lr_vae": 0.0005,                 // Learning rate VAE
+        "lr_unet": 0.0001,                // Learning rate U-Net
+        "decay_lr_after": 200,            // Lambda decay after epoch #
+        "z_dim": 256                      // Latent space dimension
     }
 }
 ```
+## Workflow
+### Generation of masks
+To generate corresponding segmentation masks the original VAE implementation is extended. A secondary decoder is introduced which learns to generate the segmentation mask, given the same set of latent variables to reconstruct the image. A binary cross entropy loss function is used to optimize this decoder. The decoder is also detached from the computational graph of the model to avoid double backpropagation. 
+![vae](vis/vae.png)
+### Improving quality VAE
+To improve the quality of images, we decompose the VAE loss function into the reconstruction loss term and KL divergence loss term. To explore different behaviours of the loss function, the $\beta$-VAE introduces a hyperparameter, which is a multiplier on the KL divergence loss term. The idea is to have different constraints for different values of beta, i.e., $\beta<1$ puts more weight on the reconstruction loss term relative to the KLD, and could potentially lead to sharper images. On the contrast, $\beta>1$ puts more weight on minimizing the distance between the approximated posterior and prior distribution, and could lead to an increase in disentanglement. 
+
+$L_\text{BETA}(\phi, \beta) = - \mathbb{E}_{\mathbf{z} \sim q_\phi(\mathbf{z}\vert\mathbf{x})} \log p_\theta(\mathbf{x}\vert\mathbf{z}) + \beta D_\text{KL}(q_\phi(\mathbf{z}\vert\mathbf{x})\|p_\theta(\mathbf{z}))$
+
+### Training VAE
+Three models are trained with the following parameters:
+- $\beta = 1$ 
+- $\beta$ cyclical linearly increasing between 0 and 1
+- $\beta = 5$
+
+![cyclical](vis/cyclical.png)
+
+## Training U-Net
+Segmentation metrics are evaluated for U-Net model with an extended dataset using the VAE models. Quantitative results are shown below. We evaluate 1:1 ratio as well as 1:2.
+
+|Model	                 |HD↓              |HD95↓            |DSC↑             |
+|------------------------|-----------------|---------------- |-----------------|
+|No aug                  | 3.57 $\pm$ 1.07 | 2.72 $\pm$ 0.94 | 0.75 $\pm$ 0.08 |
+|$\beta=1$ **(1:1)**         | **2.14** $\pm$ **0.42** | **1.34** $\pm$ **0.32** | **0.86** $\pm$ **0.03** |
+|$\beta=1$ (1:2)         | 2.36 $\pm$ 0.69 | 1.41 $\pm$ 0.58 | 0.86 $\pm$ 0.04 |
+|$\beta_{cyclical}$ (1:1)| 4.31 $\pm$ 1.29 | 3.49 $\pm$ 1.23 | 0.72 $\pm$ 0.05 |
+|$\beta_{cyclical}$ (1:2)| 3.51 $\pm$ 0.53 | 2.38 $\pm$ 0.28 | 0.76 $\pm$ 0.05 |
+|$\beta=5$ (1:1)         | 4.86 $\pm$ 1.06 | 3.96 $\pm$ 0.88 | 0.64 $\pm$ 0.07 |
+|$\beta=5$ (1:2)         | 4.32 $\pm$ 1.02 | 3.33 $\pm$ 0.81 | 0.71 $\pm$ 0.03 |
