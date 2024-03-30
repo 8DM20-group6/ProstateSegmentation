@@ -81,7 +81,7 @@ To generate corresponding segmentation masks the original VAE implementation is 
 ### Improving quality VAE
 To improve the quality of images, we decompose the VAE loss function into the reconstruction loss term and KL divergence loss term. To explore different behaviours of the loss function, the $\beta$-VAE introduces a hyperparameter, which is a multiplier on the KL divergence loss term. The idea is to have different constraints for different values of beta, i.e., $\beta<1$ puts more weight on the reconstruction loss term relative to the KLD, and could potentially lead to sharper images. On the contrast, $\beta>1$ puts more weight on minimizing the distance between the approximated posterior and prior distribution, and could lead to an increase in disentanglement. 
 
-$L_\text{BETA}(\phi, \beta) = - \mathbb{E}_{\mathbf{z} \sim q_\phi(\mathbf{z}\vert\mathbf{x})} \log p_\theta(\mathbf{x}\vert\mathbf{z}) + \beta D_\text{KL}(q_\phi(\mathbf{z}\vert\mathbf{x})\|p_\theta(\mathbf{z}))$
+![equation](https://latex.codecogs.com/svg.image?L_%5Ctext%7BBETA%7D(%5Cphi,%5Cbeta)=-%5Cmathbb%7BE%7D_%7B%5Cmathbf%7Bz%7D%5Csim%20q_%5Cphi(%5Cmathbf%7Bz%7D%5Cvert%5Cmathbf%7Bx%7D)%7D%5Clog%20p_%5Ctheta(%5Cmathbf%7Bx%7D%5Cvert%5Cmathbf%7Bz%7D)&plus;%5Cbeta%20D_%5Ctext%7BKL%7D(q_%5Cphi(%5Cmathbf%7Bz%7D%5Cvert%5Cmathbf%7Bx%7D)%5C%7Cp_%5Ctheta(%5Cmathbf%7Bz%7D)))
 
 ### Training VAE
 Three models are trained with the following parameters:
